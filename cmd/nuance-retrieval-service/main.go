@@ -2,9 +2,13 @@ package main
 
 import (
 	"bufio"
+	"context"
 	"fmt"
 	"net"
+	"os"
 	"sync"
+
+	"github.com/pinecone-io/go-pinecone/pinecone"
 )
 
 type Client struct {
@@ -21,6 +25,45 @@ var (
 )
 
 func main() {
+	ctx := context.Background()
+
+	pineKey := os.Getenv("PINECONE_API_KEY")
+
+	pc, err := pinecone.NewClient(pinecone.NewClientParams{
+		ApiKey: pineKey,
+	})
+
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	idxs, err := pc.ListIndexes(ctx)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	for _, index := range idxs {
+		fmt.Println(index)
+	}
+
+	idx, err := pc.Index(idxs[0].Host)
+	defer idx.Close()
+
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	res, err := idx.DescribeIndexStats(ctx)
+	if err != nil {
+		fmt.Println("Error:", err)
+		return
+	}
+
+	fmt.Println(res)
+
 	server, err := net.Listen("tcp", ":8080")
 	if err != nil {
 		panic(err)
