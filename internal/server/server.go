@@ -4,13 +4,19 @@ import (
 	"bufio"
 	"fmt"
 	"net"
-	"regexp"
 	"sync"
+
+	"github.com/Max-Gabriel-Susman/nuance-retrieval-service/internal/message"
 )
 
 type Client struct {
 	channel chan string
 	name    string
+}
+
+type ServerProvider interface {
+	HandleClient(conn net.Conn)
+	HandleConnections()
 }
 
 type Server struct {
@@ -37,12 +43,13 @@ func NewServer(listener net.Listener) Server {
 func (s Server) HandleConnections() {
 	for {
 		select {
-		case message := <-s.Broadcast:
+		case text := <-s.Broadcast:
 			s.Mutex.Lock()
+			msg := message.NewMessage(text)
 			for client := range s.Clients {
 				select {
-				case client.channel <- message:
-					respondToMessage(message)
+				case client.channel <- text:
+					msg.RespondToMessage()
 				default:
 					close(client.channel)
 					delete(s.Clients, client)
@@ -73,38 +80,17 @@ func (s Server) HandleClient(conn net.Conn) {
 	s.Register <- client
 
 	go func() {
-		for message := range channel {
-			fmt.Fprintln(conn, message)
+		for text := range channel {
+			fmt.Fprintln(conn, text)
 		}
 	}()
 
 	scanner := bufio.NewScanner(conn)
 	for scanner.Scan() {
-		message := scanner.Text()
-		s.Broadcast <- fmt.Sprintf("%s: %s", client.name, message)
+		text := scanner.Text()
+		s.Broadcast <- fmt.Sprintf("%s: %s", client.name, text)
 	}
 
 	s.Unregister <- client
 	fmt.Printf("Client %s disconnected\n", client.name)
-}
-
-func respondToMessage(message string) {
-	// fmt.Println("message is: ", message) // delete l8r
-	fmt.Println("pre parsed message: ", message) // delete l8r
-	// Example input string
-	input := message
-
-	// Define the regular expression pattern to match the message
-	re := regexp.MustCompile(`\[::1\]:\d+: (.+)`)
-
-	// Find the match
-	match := re.FindStringSubmatch(input)
-
-	// Check if a match is found
-	if len(match) > 1 {
-		message := match[1]
-		fmt.Println("Parsed message:", message, ":") // delete l8r
-	} else {
-		fmt.Println("No match found")
-	}
 }
