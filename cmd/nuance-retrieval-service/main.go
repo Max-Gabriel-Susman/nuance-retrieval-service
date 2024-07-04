@@ -6,6 +6,7 @@ import (
 	"fmt"
 	"net"
 	"os"
+	"regexp"
 	"sync"
 
 	"github.com/pinecone-io/go-pinecone/pinecone"
@@ -84,6 +85,27 @@ func main() {
 	}
 }
 
+func respondToMessage(message string) {
+	// fmt.Println("message is: ", message) // delete l8r
+	fmt.Println("pre parsed message: ", message) // delete l8r
+	// Example input string
+	input := message
+
+	// Define the regular expression pattern to match the message
+	re := regexp.MustCompile(`\[::1\]:\d+: (.+)`)
+
+	// Find the match
+	match := re.FindStringSubmatch(input)
+
+	// Check if a match is found
+	if len(match) > 1 {
+		message := match[1]
+		fmt.Println("Parsed message:", message, ":")
+	} else {
+		fmt.Println("No match found")
+	}
+}
+
 func handleConnections() {
 	for {
 		select {
@@ -92,6 +114,7 @@ func handleConnections() {
 			for client := range clients {
 				select {
 				case client.channel <- message:
+					respondToMessage(message)
 				default:
 					close(client.channel)
 					delete(clients, client)

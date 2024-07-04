@@ -1,6 +1,6 @@
 module github.com/Max-Gabriel-Susman/nuance-retrieval-service
 
-go 1.21.0
+go 1.21
 
 require github.com/pinecone-io/go-pinecone v0.5.0
 
