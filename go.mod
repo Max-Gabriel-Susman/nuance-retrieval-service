@@ -2,7 +2,10 @@ module github.com/Max-Gabriel-Susman/nuance-retrieval-service
 
 go 1.21
 
-require github.com/pinecone-io/go-pinecone v0.5.0
+require (
+	github.com/pinecone-io/go-pinecone v0.5.0
+	github.com/sashabaranov/go-openai v1.26.2
+)
 
 require (
 	github.com/apapsch/go-jsonmerge/v2 v2.0.0 // indirect

@@ -3,8 +3,11 @@ package server
 import (
 	"bufio"
 	"fmt"
+	"log"
 	"net"
 	"sync"
+
+	openai "github.com/sashabaranov/go-openai"
 
 	"github.com/Max-Gabriel-Susman/nuance-retrieval-service/internal/message"
 )
@@ -20,22 +23,24 @@ type ServerProvider interface {
 }
 
 type Server struct {
-	Listener   net.Listener
-	Clients    map[Client]bool
-	Broadcast  chan string
-	Register   chan Client
-	Unregister chan Client
-	Mutex      *sync.Mutex
+	Listener     net.Listener
+	Clients      map[Client]bool
+	Broadcast    chan string
+	Register     chan Client
+	Unregister   chan Client
+	Mutex        *sync.Mutex
+	OpenAIClient *openai.Client
 }
 
-func NewServer(listener net.Listener) Server {
+func NewServer(listener net.Listener, openAIClient *openai.Client) Server {
 	return Server{
-		Listener:   listener,
-		Clients:    make(map[Client]bool),
-		Broadcast:  make(chan string),
-		Register:   make(chan Client),
-		Unregister: make(chan Client),
-		Mutex:      &sync.Mutex{},
+		Listener:     listener,
+		Clients:      make(map[Client]bool),
+		Broadcast:    make(chan string),
+		Register:     make(chan Client),
+		Unregister:   make(chan Client),
+		Mutex:        &sync.Mutex{},
+		OpenAIClient: openAIClient,
 	}
 
 }
@@ -46,10 +51,15 @@ func (s Server) HandleConnections() {
 		case text := <-s.Broadcast:
 			s.Mutex.Lock()
 			msg := message.NewMessage(text)
+			resp, err := msg.RespondToMessage(s.OpenAIClient)
+			if err != nil {
+				log.Printf("ChatCompletion error: %v\n", err)
+				continue
+			}
+			fmt.Println(resp.Choices[0].Message.Content)
 			for client := range s.Clients {
 				select {
-				case client.channel <- text:
-					msg.RespondToMessage()
+				case client.channel <- resp.Choices[0].Message.Content:
 				default:
 					close(client.channel)
 					delete(s.Clients, client)
